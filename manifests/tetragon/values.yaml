@@ -5,6 +5,8 @@ tetragon:
   exportFilename: "/var/run/cilium/tetragon/tetragon.log"
   exportFileMaxSizeMB: 100
   exportFileRotationInterval: "24h"
-  # Scope events to lab namespaces (kube-system noise filtered out).
+  # Scope events to lab namespaces. NOTE: deliberately EXCLUDE "wazuh" — the
+  # wazuh-agent itself runs hostPID=true and triggers ~600 exec events/min from
+  # syscollector + rootcheck + sca, swamping the alert stream with self-noise.
   exportAllowList: |
-    {"event_set":["PROCESS_EXEC","PROCESS_EXIT","PROCESS_KPROBE"],"namespace":["vulnerable-apps","security-testing","wazuh"]}
+    {"event_set":["PROCESS_EXEC","PROCESS_EXIT","PROCESS_KPROBE"],"namespace":["vulnerable-apps","security-testing"]}

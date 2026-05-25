@@ -7,28 +7,32 @@ data:
   0700-tetragon_rules.xml: |
     <group name="tetragon,">
 
-      <rule id="700000" level="3">
+      <!-- Base rules: level 0 = match-only (for if_sid chaining), NO alerts.
+           Without this, every exec/exit/kprobe alerts at level 3 — thousands
+           per minute of pure noise. Specific child rules (700004+) keep their
+           own non-zero levels and still alert on the patterns that matter. -->
+      <rule id="700000" level="0">
         <decoded_as>json</decoded_as>
         <field name="process_exec.process.exec_id">\.+</field>
         <options>no_full_log</options>
         <group>tetragon_exec,</group>
-        <description>Tetragon: Process execution - $(process_exec.process.binary)</description>
+        <description>Tetragon: Process execution (base, silent)</description>
       </rule>
 
-      <rule id="700001" level="3">
+      <rule id="700001" level="0">
         <decoded_as>json</decoded_as>
         <field name="process_exit.process.exec_id">\.+</field>
         <options>no_full_log</options>
         <group>tetragon_exit,</group>
-        <description>Tetragon: Process exit - $(process_exit.process.binary)</description>
+        <description>Tetragon: Process exit (base, silent)</description>
       </rule>
 
-      <rule id="700002" level="3">
+      <rule id="700002" level="0">
         <decoded_as>json</decoded_as>
         <field name="process_kprobe.process.exec_id">\.+</field>
         <options>no_full_log</options>
         <group>tetragon_kprobe,</group>
-        <description>Tetragon: Kernel-level probe event detected</description>
+        <description>Tetragon: Kprobe (base, silent)</description>
       </rule>
 
       <rule id="700003" level="5">
