@@ -107,4 +107,17 @@ data:
         <description>Tetragon: Outbound TCP/UDP connection at kernel level from $(process_kprobe.process.binary)</description>
       </rule>
 
+      <!-- Forensic audit trail for vulnerable-apps. Records every command
+           exec at level 3 so the dashboard shows the full activity timeline.
+           Higher-tier rules (700004 shell, 700007 sensitive file, etc.) still
+           fire on top for actual threats. Filter rule.id:700099 in the
+           dashboard to query the audit stream. -->
+      <rule id="700099" level="3">
+        <if_sid>700000</if_sid>
+        <field name="process_exec.process.pod.namespace">vulnerable-apps</field>
+        <options>no_full_log</options>
+        <group>tetragon_exec,command_audit,</group>
+        <description>Tetragon: command exec - $(process_exec.process.binary) in $(process_exec.process.pod.namespace)/$(process_exec.process.pod.name)</description>
+      </rule>
+
     </group>
