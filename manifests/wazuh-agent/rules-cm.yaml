@@ -8,15 +8,13 @@ data:
     <group name="tetragon,">
 
       <!-- Base rules: level 0 = match-only (for if_sid chaining), NO alerts.
-           Without this, every exec/exit/kprobe alerts at level 3 — thousands
-           per minute of pure noise. Specific child rules (700004+) keep their
-           own non-zero levels and still alert on the patterns that matter. -->
+           Specific child rules below fire at their own non-zero levels. -->
       <rule id="700000" level="0">
         <decoded_as>json</decoded_as>
         <field name="process_exec.process.exec_id">\.+</field>
         <options>no_full_log</options>
         <group>tetragon_exec,</group>
-        <description>Tetragon: Process execution (base, silent)</description>
+        <description>exec base (silent)</description>
       </rule>
 
       <rule id="700001" level="0">
@@ -24,7 +22,7 @@ data:
         <field name="process_exit.process.exec_id">\.+</field>
         <options>no_full_log</options>
         <group>tetragon_exit,</group>
-        <description>Tetragon: Process exit (base, silent)</description>
+        <description>exit base (silent)</description>
       </rule>
 
       <rule id="700002" level="0">
@@ -32,63 +30,70 @@ data:
         <field name="process_kprobe.process.exec_id">\.+</field>
         <options>no_full_log</options>
         <group>tetragon_kprobe,</group>
-        <description>Tetragon: Kprobe (base, silent)</description>
+        <description>kprobe base (silent)</description>
       </rule>
 
+      <!-- Process exited with non-zero status (possible crash) -->
       <rule id="700003" level="5">
         <if_sid>700001</if_sid>
         <field name="process_exit.status">^[^0]</field>
         <options>no_full_log</options>
         <group>tetragon_exit,</group>
-        <description>Tetragon: Process exited with non-zero status (possible crash)</description>
+        <description>Crash: $(process_exit.process.binary) status=$(process_exit.status)</description>
       </rule>
 
+      <!-- Shell spawned -->
       <rule id="700004" level="8">
         <if_sid>700000</if_sid>
         <field name="process_exec.process.binary">/usr/bin/sh|/bin/sh|/usr/bin/bash|/bin/bash|/usr/bin/zsh|/bin/zsh|/usr/bin/dash</field>
         <options>no_full_log</options>
         <group>tetragon_exec,container_shell,</group>
-        <description>Tetragon: Shell spawned in container - possible interactive intrusion</description>
+        <description>Shell spawn: $(process_exec.process.binary)</description>
       </rule>
 
+      <!-- Outbound download tools -->
       <rule id="700005" level="7">
         <if_sid>700000</if_sid>
         <field name="process_exec.process.binary">/usr/bin/curl|/bin/curl|/usr/bin/wget|/bin/wget</field>
         <options>no_full_log</options>
         <group>tetragon_exec,data_exfil,</group>
-        <description>Tetragon: curl/wget executed in container</description>
+        <description>Download tool: $(process_exec.process.binary)</description>
       </rule>
 
+      <!-- Package manager -->
       <rule id="700006" level="7">
         <if_sid>700000</if_sid>
         <field name="process_exec.process.binary">/usr/bin/apt|/usr/bin/apt-get|/usr/bin/dpkg|/usr/bin/yum|/usr/bin/dnf|/usr/bin/apk|/usr/bin/rpm</field>
         <options>no_full_log</options>
         <group>tetragon_exec,package_install,</group>
-        <description>Tetragon: Package manager executed in container - possible unauthorized install</description>
+        <description>Package mgr: $(process_exec.process.binary)</description>
       </rule>
 
+      <!-- Sensitive file access -->
       <rule id="700007" level="10">
         <if_sid>700000</if_sid>
         <field name="process_exec.process.arguments">/etc/shadow|/etc/passwd|/etc/sudoers|/root/.ssh/|/proc/</field>
         <options>no_full_log</options>
         <group>tetragon_exec,sensitive_file,</group>
-        <description>Tetragon: Sensitive system file accessed</description>
+        <description>Sensitive file: $(process_exec.process.arguments)</description>
       </rule>
 
+      <!-- Privilege escalation tools -->
       <rule id="700008" level="10">
         <if_sid>700000</if_sid>
         <field name="process_exec.process.binary">/usr/bin/sudo|/bin/su|/usr/bin/su|/usr/sbin/usermod|/usr/sbin/useradd</field>
         <options>no_full_log</options>
         <group>tetragon_exec,priv_escalation,</group>
-        <description>Tetragon: Privilege escalation tool executed - $(process_exec.process.binary)</description>
+        <description>Priv-esc: $(process_exec.process.binary)</description>
       </rule>
 
+      <!-- Namespace-aware enrichers: use workload (no replica-set hash suffix) -->
       <rule id="700010" level="9">
         <if_sid>700004</if_sid>
         <field name="process_exec.process.pod.namespace">vulnerable-apps</field>
         <options>no_full_log</options>
         <group>tetragon_exec,container_shell,k8s_aware,</group>
-        <description>Tetragon: Shell spawned in vulnerable-apps/$(process_exec.process.pod.name)</description>
+        <description>Shell in $(process_exec.process.pod.workload)</description>
       </rule>
 
       <rule id="700011" level="8">
@@ -96,28 +101,26 @@ data:
         <field name="process_exec.process.pod.namespace">vulnerable-apps</field>
         <options>no_full_log</options>
         <group>tetragon_exec,data_exfil,k8s_aware,</group>
-        <description>Tetragon: curl/wget in vulnerable-apps/$(process_exec.process.pod.name)</description>
+        <description>Download in $(process_exec.process.pod.workload)</description>
       </rule>
 
+      <!-- Kernel-level network connections (from TracingPolicies) -->
       <rule id="700020" level="6">
         <if_sid>700002</if_sid>
         <field name="process_kprobe.function_name">tcp_connect|ip4_datagram_connect</field>
         <options>no_full_log</options>
         <group>tetragon_kprobe,network,</group>
-        <description>Tetragon: Outbound TCP/UDP connection at kernel level from $(process_kprobe.process.binary)</description>
+        <description>TCP connect via $(process_kprobe.process.binary)</description>
       </rule>
 
-      <!-- Forensic audit trail for vulnerable-apps. Records every command
-           exec at level 3 so the dashboard shows the full activity timeline.
-           Higher-tier rules (700004 shell, 700007 sensitive file, etc.) still
-           fire on top for actual threats. Filter rule.id:700099 in the
-           dashboard to query the audit stream. -->
+      <!-- Forensic audit trail for vulnerable-apps. Level 3 = recorded but
+           low severity. Filter rule.id:700099 for full command timeline. -->
       <rule id="700099" level="3">
         <if_sid>700000</if_sid>
         <field name="process_exec.process.pod.namespace">vulnerable-apps</field>
         <options>no_full_log</options>
         <group>tetragon_exec,command_audit,</group>
-        <description>Tetragon: command exec - $(process_exec.process.binary) in $(process_exec.process.pod.namespace)/$(process_exec.process.pod.name)</description>
+        <description>$(process_exec.process.binary) [$(process_exec.process.pod.workload)]</description>
       </rule>
 
     </group>
