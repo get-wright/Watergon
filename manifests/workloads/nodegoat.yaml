@@ -1,0 +1,119 @@
+# OWASP NodeGoat — intentionally vulnerable Node.js app for OWASP Top 10 training.
+# Image: nodegoat-local:latest (built by bootstrap.sh from github.com/OWASP/NodeGoat).
+#
+# MongoDB sidecar (single instance, emptyDir) provides the backing store. The
+# NodeGoat command wrapper seeds the DB on each pod start — fine for a lab,
+# wipes per-user data on restart.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodegoat-mongo
+  namespace: vulnerable-apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nodegoat-mongo
+  template:
+    metadata:
+      labels:
+        app: nodegoat-mongo
+        security: monitored
+    spec:
+      containers:
+        - name: mongo
+          image: mongo:6
+          ports:
+            - containerPort: 27017
+          volumeMounts:
+            - name: data
+              mountPath: /data/db
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nodegoat-mongo
+  namespace: vulnerable-apps
+spec:
+  selector:
+    app: nodegoat-mongo
+  ports:
+    - port: 27017
+      targetPort: 27017
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodegoat
+  namespace: vulnerable-apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nodegoat
+  template:
+    metadata:
+      labels:
+        app: nodegoat
+        security: monitored
+    spec:
+      containers:
+        - name: nodegoat
+          image: nodegoat-local:latest
+          imagePullPolicy: Never
+          # Seed on each start (lab — fine to wipe per-user data).
+          command: ["/bin/sh", "-c"]
+          args:
+            - >-
+              echo "[nodegoat] waiting for mongo..." &&
+              until nc -z nodegoat-mongo 27017; do sleep 2; done &&
+              echo "[nodegoat] seeding..." &&
+              npm run db:seed &&
+              echo "[nodegoat] starting server..." &&
+              exec npm start
+          env:
+            - name: MONGODB_URI
+              value: mongodb://nodegoat-mongo:27017/nodegoat
+            - name: PORT
+              value: "4000"
+          ports:
+            - containerPort: 4000
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 4000
+            initialDelaySeconds: 25
+            periodSeconds: 5
+            failureThreshold: 12
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nodegoat
+  namespace: vulnerable-apps
+spec:
+  type: NodePort
+  selector:
+    app: nodegoat
+  ports:
+    - port: 4000
+      targetPort: 4000
+      nodePort: 30001

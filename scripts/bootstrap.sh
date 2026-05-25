@@ -114,6 +114,20 @@ kubectl apply -k manifests/wazuh-agent
 # need the k8s-nodes group to enroll, which the Job creates.
 kubectl wait --for=condition=complete --timeout=600s job/wazuh-rules-sync -n wazuh
 
+phase "PHASE 9.5 — build NodeGoat image + load into kind"
+NODEGOAT_BUILD_DIR="/opt/nodegoat-build"
+NODEGOAT_IMAGE="nodegoat-local:latest"
+NODEGOAT_DOCKERFILE="${REPO_DIR}/manifests/workloads/nodegoat-image/Dockerfile"
+if ! docker image inspect "$NODEGOAT_IMAGE" >/dev/null 2>&1; then
+  if [ ! -d "$NODEGOAT_BUILD_DIR" ]; then
+    git clone --depth=1 https://github.com/OWASP/NodeGoat.git "$NODEGOAT_BUILD_DIR"
+  fi
+  # Use Watergon's patched Dockerfile (upstream strips devDeps which breaks
+  # the seed step). See manifests/workloads/nodegoat-image/Dockerfile.
+  docker build -t "$NODEGOAT_IMAGE" -f "$NODEGOAT_DOCKERFILE" "$NODEGOAT_BUILD_DIR"
+fi
+kind load docker-image "$NODEGOAT_IMAGE" --name "$KIND_CLUSTER"
+
 phase "PHASE 10 — workloads"
 kubectl apply -k manifests/workloads
 

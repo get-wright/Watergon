@@ -126,9 +126,10 @@ sudo systemctl restart watergon-dashboard-pf
 ## What this gets you
 
 - **eBPF process visibility** on every node (Tetragon DaemonSet).
-- **SIEM** with custom rules (rules 700000–700020) firing on shells, curl, package managers, sensitive-file access, privilege escalation, kernel tcp_connect.
-- **DVWA** on NodePort 30000 as the canonical "thing under attack."
-- **Active Response** wiring (delete-pod.py in the agent image; you wire it on the manager via wazuh-conf if desired — currently a follow-up).
+- **SIEM** with custom rules firing on shells, curl, package managers, sensitive-file access, privilege escalation, kernel tcp_connect — plus a forensic audit rule (700099) that records every command run in `vulnerable-apps`.
+- **DVWA** (PHP, OWASP Top 10 / 2007 vintage) on NodePort 30000.
+- **OWASP NodeGoat** (Node.js, OWASP Top 10 / 2017 vintage) on NodePort 30001 — backed by a `mongo:6` sidecar.
+- **Active Response** wiring (delete-pod.py in the agent image; wire on the manager via wazuh-conf if desired — currently a follow-up).
 
 ## Common operations
 

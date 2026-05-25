@@ -3,3 +3,4 @@ kind: Kustomization
 namespace: vulnerable-apps
 resources:
   - dvwa.yaml
+  - nodegoat.yaml
