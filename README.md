@@ -20,6 +20,10 @@ Total cold deploy after image bake: **~7 min**. Re-deploy on an existing image: 
 
 See [`docs/kubectl-cheatsheet.md`](docs/kubectl-cheatsheet.md) — copy-paste recipes for exec/logs/port-forward/Tetragon events/Wazuh alerts/agent enrollment/troubleshooting, all tuned to this lab's namespaces and pod names.
 
+## How the kernel side works
+
+[`docs/ebpf-explainer.md`](docs/ebpf-explainer.md) — deep-dive on eBPF (why it exists, the verifier, maps, helpers, hook points, CO-RE/BTF) and exactly how Tetragon uses it to produce the events that flow into Wazuh.
+
 ## Repo layout
 
 ```
