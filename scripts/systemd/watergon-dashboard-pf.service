@@ -1,0 +1,26 @@
+[Unit]
+Description=Watergon: kubectl port-forward Wazuh dashboard for IAP tunnel
+Documentation=https://github.com/get-wright/Watergon
+After=docker.service network-online.target
+Wants=network-online.target
+PartOf=docker.service
+# Never give up; let Restart=always handle indefinite retries.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=n3m0
+Group=n3m0
+Environment=KUBECONFIG=/home/n3m0/.kube/config
+ExecStart=/usr/local/bin/watergon-dashboard-pf.sh
+# Restart on ANY exit (svc went away, kubectl killed, network blip).
+Restart=always
+RestartSec=10
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

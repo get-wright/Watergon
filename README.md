@@ -103,10 +103,7 @@ Subsequent re-deploys: `scp` the changed bits, then `sudo bash /opt/watergon/scr
 
 ## Accessing the dashboard
 
-On the VM (background or tmux):
-```bash
-kubectl port-forward svc/dashboard -n wazuh 8443:443
-```
+`bootstrap.sh` installs a systemd unit (`watergon-dashboard-pf.service`) that runs `kubectl port-forward` bound to `0.0.0.0:8443`, waits for the dashboard Service to have ready endpoints, and is restarted by systemd on any exit. So once the lab is up, the port-forward is always there.
 
 On laptop:
 ```bash
@@ -116,6 +113,15 @@ gcloud compute start-iap-tunnel <instance> 8443 \
 ```
 
 Browser: `https://localhost:8443` → admin / SecretPassword → Threat Hunting → Events → filter `rule.groups:"tetragon"`.
+
+**Service controls on the VM:**
+```bash
+sudo systemctl status watergon-dashboard-pf
+sudo journalctl -u watergon-dashboard-pf -f
+sudo systemctl restart watergon-dashboard-pf
+```
+
+**Why `--address=0.0.0.0` and not loopback?** IAP tunneling connects to the VM via its primary internal IP (nic0), not 127.0.0.1. A loopback-only listener is invisible to the tunnel.
 
 ## What this gets you
 

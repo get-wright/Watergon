@@ -120,6 +120,20 @@ kubectl apply -k manifests/workloads
 phase "PHASE 11 — wait for DS"
 kubectl rollout status ds/wazuh-agent -n wazuh --timeout=300s
 
+phase "PHASE 12 — install systemd unit for dashboard port-forward"
+# Makes svc/dashboard reachable via IAP tunnel on port 8443, auto-restarted by systemd.
+# The wrapper script waits for the service to become ready before binding.
+install -o root -g root -m 0755 "${REPO_DIR}/scripts/systemd/watergon-dashboard-pf.sh" /usr/local/bin/watergon-dashboard-pf.sh
+install -o root -g root -m 0644 "${REPO_DIR}/scripts/systemd/watergon-dashboard-pf.service" /etc/systemd/system/watergon-dashboard-pf.service
+# If user differs from "n3m0" (the default in the unit), patch it in-place.
+RUN_USER="${SUDO_USER:-${USER:-n3m0}}"
+if [ "$RUN_USER" != "n3m0" ]; then
+  sed -i "s|^User=n3m0|User=${RUN_USER}|; s|^Group=n3m0|Group=${RUN_USER}|; s|/home/n3m0/|/home/${RUN_USER}/|g" \
+    /etc/systemd/system/watergon-dashboard-pf.service
+fi
+systemctl daemon-reload
+systemctl enable --now watergon-dashboard-pf.service
+
 phase "DONE"
 kubectl get pods -A
 echo
