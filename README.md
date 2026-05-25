@@ -2,6 +2,10 @@
 
 Tetragon + Wazuh security lab on a single GCE VM running `kind`. Standardized deploy path: **Packer image → Terraform VM → bootstrap.sh** → working SIEM ingesting eBPF events.
 
+![architecture](docs/architecture.png)
+
+Source: [`docs/architecture.drawio`](docs/architecture.drawio) — edit in [app.diagrams.net](https://app.diagrams.net).
+
 ## Why this exists
 
 Setup.md (the original 4000-line walkthrough) takes ~30 min and is fragile across re-runs. This repo collapses it into:
