@@ -1,0 +1,35 @@
+# Declarative kernel-level hooks. Each TracingPolicy emits process_kprobe
+# events with function_name + args. Wazuh rule 700020 catches tcp_connect.
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicyNamespaced
+metadata:
+  name: tcp-connect-monitor
+  namespace: vulnerable-apps
+spec:
+  kprobes:
+    - call: "tcp_connect"
+      syscall: false
+      args:
+        - index: 0
+          type: "sock"
+---
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicyNamespaced
+metadata:
+  name: sensitive-file-open
+  namespace: vulnerable-apps
+spec:
+  kprobes:
+    - call: "security_file_open"
+      syscall: false
+      args:
+        - index: 0
+          type: "file"
+      selectors:
+        - matchArgs:
+            - index: 0
+              operator: "Prefix"
+              values:
+                - "/etc/shadow"
+                - "/etc/sudoers"
+                - "/root/.ssh"

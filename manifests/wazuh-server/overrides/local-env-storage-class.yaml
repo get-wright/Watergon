@@ -1,0 +1,9 @@
+# Copied INTO upstream wazuh-kubernetes/envs/local-env/storage-class.yaml at deploy time.
+# Upstream's local-env overlay hardcodes microk8s.io/hostpath which overrides the base.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: wazuh-storage
+provisioner: rancher.io/local-path
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer

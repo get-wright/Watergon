@@ -1,0 +1,48 @@
+# Runs ONCE after wazuh-server is ready, BEFORE the agent DaemonSet.
+# - Creates the k8s-nodes agent group on master+worker (Setup.md Step 15.4 — required for enrollment)
+# - Copies tetragon rules XML into both manager pods (master AND worker — cluster sync may lag)
+# - Restarts manager processes so the rules load
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: wazuh-rules-sync
+  namespace: wazuh
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 600
+  template:
+    spec:
+      serviceAccountName: wazuh-agent-sa
+      restartPolicy: OnFailure
+      containers:
+        - name: sync
+          image: bitnami/kubectl:1.31
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -e
+              echo "Waiting for both managers to be ready..."
+              kubectl wait --for=condition=ready pod/wazuh-manager-master-0 -n wazuh --timeout=600s
+              kubectl wait --for=condition=ready pod/wazuh-manager-worker-0 -n wazuh --timeout=600s
+
+              echo "Create k8s-nodes group on master + worker..."
+              kubectl exec -n wazuh wazuh-manager-master-0 -- /var/ossec/bin/agent_groups -a -g k8s-nodes -q || true
+              kubectl exec -n wazuh wazuh-manager-worker-0 -- /var/ossec/bin/agent_groups -a -g k8s-nodes -q || true
+
+              echo "Copy tetragon rules into both managers..."
+              kubectl cp /rules/0700-tetragon_rules.xml wazuh/wazuh-manager-master-0:/var/ossec/etc/rules/0700-tetragon_rules.xml
+              kubectl cp /rules/0700-tetragon_rules.xml wazuh/wazuh-manager-worker-0:/var/ossec/etc/rules/0700-tetragon_rules.xml
+
+              echo "Restart both managers (in-place wazuh-control restart, not pod restart)..."
+              kubectl exec -n wazuh wazuh-manager-master-0 -- /var/ossec/bin/wazuh-control restart
+              kubectl exec -n wazuh wazuh-manager-worker-0 -- /var/ossec/bin/wazuh-control restart
+
+              echo "Rules sync done."
+          volumeMounts:
+            - name: rules
+              mountPath: /rules
+              readOnly: true
+      volumes:
+        - name: rules
+          configMap:
+            name: wazuh-tetragon-rules

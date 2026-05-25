@@ -1,0 +1,9 @@
+# Copied INTO upstream wazuh-kubernetes/wazuh/base/storage-class.yaml at deploy time.
+# Upstream ships with the provisioner field commented out.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: wazuh-storage
+provisioner: rancher.io/local-path
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer

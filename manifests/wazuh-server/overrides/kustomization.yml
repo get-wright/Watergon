@@ -1,0 +1,11 @@
+# Copied INTO upstream wazuh-kubernetes/envs/local-env/kustomization.yml.
+# Single patches: block (YAML silently drops duplicate keys).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../wazuh
+patches:
+  - path: storage-class.yaml
+  - path: indexer-resources.yaml
+  - path: wazuh-resources.yaml
+  - path: services-clusterip-patch.yaml

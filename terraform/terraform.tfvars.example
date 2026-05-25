@@ -1,0 +1,8 @@
+project_id = "your-gcp-project-id"
+# Override defaults below as needed:
+# zone          = "asia-southeast1-c"
+# machine_type  = "e2-standard-8"
+# use_spot      = true
+# disk_size_gb  = 200
+# network       = "default"
+# subnetwork    = "default"

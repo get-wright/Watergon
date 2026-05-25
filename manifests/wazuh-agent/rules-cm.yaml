@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wazuh-tetragon-rules
+  namespace: wazuh
+data:
+  0700-tetragon_rules.xml: |
+    <group name="tetragon,">
+
+      <rule id="700000" level="3">
+        <decoded_as>json</decoded_as>
+        <field name="process_exec.process.exec_id">\.+</field>
+        <options>no_full_log</options>
+        <group>tetragon_exec,</group>
+        <description>Tetragon: Process execution - $(process_exec.process.binary)</description>
+      </rule>
+
+      <rule id="700001" level="3">
+        <decoded_as>json</decoded_as>
+        <field name="process_exit.process.exec_id">\.+</field>
+        <options>no_full_log</options>
+        <group>tetragon_exit,</group>
+        <description>Tetragon: Process exit - $(process_exit.process.binary)</description>
+      </rule>
+
+      <rule id="700002" level="3">
+        <decoded_as>json</decoded_as>
+        <field name="process_kprobe.process.exec_id">\.+</field>
+        <options>no_full_log</options>
+        <group>tetragon_kprobe,</group>
+        <description>Tetragon: Kernel-level probe event detected</description>
+      </rule>
+
+      <rule id="700003" level="5">
+        <if_sid>700001</if_sid>
+        <field name="process_exit.status">^[^0]</field>
+        <options>no_full_log</options>
+        <group>tetragon_exit,</group>
+        <description>Tetragon: Process exited with non-zero status (possible crash)</description>
+      </rule>
+
+      <rule id="700004" level="8">
+        <if_sid>700000</if_sid>
+        <field name="process_exec.process.binary">/usr/bin/sh|/bin/sh|/usr/bin/bash|/bin/bash|/usr/bin/zsh|/bin/zsh|/usr/bin/dash</field>
+        <options>no_full_log</options>
+        <group>tetragon_exec,container_shell,</group>
+        <description>Tetragon: Shell spawned in container - possible interactive intrusion</description>
+      </rule>
+
+      <rule id="700005" level="7">
+        <if_sid>700000</if_sid>
+        <field name="process_exec.process.binary">/usr/bin/curl|/bin/curl|/usr/bin/wget|/bin/wget</field>
+        <options>no_full_log</options>
+        <group>tetragon_exec,data_exfil,</group>
+        <description>Tetragon: curl/wget executed in container</description>
+      </rule>
+
+      <rule id="700006" level="7">
+        <if_sid>700000</if_sid>
+        <field name="process_exec.process.binary">/usr/bin/apt|/usr/bin/apt-get|/usr/bin/dpkg|/usr/bin/yum|/usr/bin/dnf|/usr/bin/apk|/usr/bin/rpm</field>
+        <options>no_full_log</options>
+        <group>tetragon_exec,package_install,</group>
+        <description>Tetragon: Package manager executed in container - possible unauthorized install</description>
+      </rule>
+
+      <rule id="700007" level="10">
+        <if_sid>700000</if_sid>
+        <field name="process_exec.process.arguments">/etc/shadow|/etc/passwd|/etc/sudoers|/root/.ssh/|/proc/</field>
+        <options>no_full_log</options>
+        <group>tetragon_exec,sensitive_file,</group>
+        <description>Tetragon: Sensitive system file accessed</description>
+      </rule>
+
+      <rule id="700008" level="10">
+        <if_sid>700000</if_sid>
+        <field name="process_exec.process.binary">/usr/bin/sudo|/bin/su|/usr/bin/su|/usr/sbin/usermod|/usr/sbin/useradd</field>
+        <options>no_full_log</options>
+        <group>tetragon_exec,priv_escalation,</group>
+        <description>Tetragon: Privilege escalation tool executed - $(process_exec.process.binary)</description>
+      </rule>
+
+      <rule id="700010" level="9">
+        <if_sid>700004</if_sid>
+        <field name="process_exec.process.pod.namespace">vulnerable-apps</field>
+        <options>no_full_log</options>
+        <group>tetragon_exec,container_shell,k8s_aware,</group>
+        <description>Tetragon: Shell spawned in vulnerable-apps/$(process_exec.process.pod.name)</description>
+      </rule>
+
+      <rule id="700011" level="8">
+        <if_sid>700005</if_sid>
+        <field name="process_exec.process.pod.namespace">vulnerable-apps</field>
+        <options>no_full_log</options>
+        <group>tetragon_exec,data_exfil,k8s_aware,</group>
+        <description>Tetragon: curl/wget in vulnerable-apps/$(process_exec.process.pod.name)</description>
+      </rule>
+
+      <rule id="700020" level="6">
+        <if_sid>700002</if_sid>
+        <field name="process_kprobe.function_name">tcp_connect|ip4_datagram_connect</field>
+        <options>no_full_log</options>
+        <group>tetragon_kprobe,network,</group>
+        <description>Tetragon: Outbound TCP/UDP connection at kernel level from $(process_kprobe.process.binary)</description>
+      </rule>
+
+    </group>

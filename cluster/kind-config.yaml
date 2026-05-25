@@ -1,0 +1,65 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: security-lab
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "node-type=control-plane"
+    extraMounts:
+      - hostPath: /tmp/kind-security-lab
+        containerPath: /host-data
+      - hostPath: /lib/modules
+        containerPath: /lib/modules
+        readOnly: true
+      - hostPath: /usr/src
+        containerPath: /usr/src
+        readOnly: true
+    extraPortMappings:
+      - containerPort: 30000
+        hostPort: 30000
+        protocol: TCP
+      - containerPort: 30001
+        hostPort: 30001
+        protocol: TCP
+  - role: worker
+    kubeadmConfigPatches:
+      - |
+        kind: JoinConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "node-type=worker,workload=security-test"
+    extraMounts:
+      - hostPath: /tmp/kind-security-lab
+        containerPath: /host-data
+      - hostPath: /lib/modules
+        containerPath: /lib/modules
+        readOnly: true
+      - hostPath: /usr/src
+        containerPath: /usr/src
+        readOnly: true
+  - role: worker
+    kubeadmConfigPatches:
+      - |
+        kind: JoinConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "node-type=worker,workload=security-test"
+    extraMounts:
+      - hostPath: /tmp/kind-security-lab
+        containerPath: /host-data
+      - hostPath: /lib/modules
+        containerPath: /lib/modules
+        readOnly: true
+      - hostPath: /usr/src
+        containerPath: /usr/src
+        readOnly: true
+featureGates:
+  "ProcMountType": true
+networking:
+  disableDefaultCNI: false
+  podSubnet: "10.244.0.0/16"
+  serviceSubnet: "10.96.0.0/12"

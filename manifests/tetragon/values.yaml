@@ -1,0 +1,10 @@
+# Helm values for cilium/tetragon. Applied via:
+#   helm install tetragon cilium/tetragon -n kube-system -f manifests/tetragon/values.yaml
+tetragon:
+  enabled: true
+  exportFilename: "/var/run/cilium/tetragon/tetragon.log"
+  exportFileMaxSizeMB: 100
+  exportFileRotationInterval: "24h"
+  # Scope events to lab namespaces (kube-system noise filtered out).
+  exportAllowList: |
+    {"event_set":["PROCESS_EXEC","PROCESS_EXIT","PROCESS_KPROBE"],"namespace":["vulnerable-apps","security-testing","wazuh"]}

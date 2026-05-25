@@ -1,0 +1,33 @@
+# Copied INTO upstream wazuh-kubernetes/envs/local-env/services-clusterip-patch.yaml.
+# Kind has no cloud LB controller; LoadBalancer services hang forever.
+apiVersion: v1
+kind: Service
+metadata:
+  name: wazuh
+  namespace: wazuh
+spec:
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wazuh-workers
+  namespace: wazuh
+spec:
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dashboard
+  namespace: wazuh
+spec:
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: indexer
+  namespace: wazuh
+spec:
+  type: ClusterIP

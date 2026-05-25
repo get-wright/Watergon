@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: wazuh-agent
+  namespace: wazuh
+  labels:
+    app: wazuh-agent
+spec:
+  selector:
+    matchLabels:
+      app: wazuh-agent
+  template:
+    metadata:
+      labels:
+        app: wazuh-agent
+    spec:
+      serviceAccountName: wazuh-agent-sa
+      hostNetwork: true
+      hostPID: true
+      dnsPolicy: ClusterFirstWithHostNet
+      terminationGracePeriodSeconds: 30
+      tolerations:
+        # Run on control-plane too (Tetragon does, agent should match coverage).
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: wazuh-agent
+          image: wazuh-agent-local:4.14.1
+          imagePullPolicy: Never
+          command: ["/bin/bash", "/scripts/script.sh"]
+          envFrom:
+            - secretRef:
+                name: wazuh-api-cred
+          securityContext:
+            privileged: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+            - name: authd-secret
+              mountPath: /secret
+              readOnly: true
+            - name: var-run
+              mountPath: /host/var/run
+              readOnly: true
+            - name: var-log
+              mountPath: /host/var/log
+              readOnly: true
+            - name: etc
+              mountPath: /host/etc
+              readOnly: true
+            - name: sys
+              mountPath: /host/sys
+              readOnly: true
+            - name: proc
+              mountPath: /host/proc
+              readOnly: true
+            - name: boot
+              mountPath: /host/boot
+              readOnly: true
+            - name: modules
+              mountPath: /host/lib/modules
+              readOnly: true
+      volumes:
+        - name: scripts
+          configMap:
+            name: wazuh-agent-scripts
+        - name: authd-secret
+          secret:
+            secretName: wazuh-authd-pass
+        - name: var-run
+          hostPath: { path: /var/run }
+        - name: var-log
+          hostPath: { path: /var/log }
+        - name: etc
+          hostPath: { path: /etc }
+        - name: sys
+          hostPath: { path: /sys }
+        - name: proc
+          hostPath: { path: /proc }
+        - name: boot
+          hostPath: { path: /boot }
+        - name: modules
+          hostPath: { path: /lib/modules }
