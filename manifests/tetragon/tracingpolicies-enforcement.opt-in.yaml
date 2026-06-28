@@ -21,12 +21,31 @@ spec:
         - index: 0
           type: "string"
       selectors:
-        - matchBinaries:
-            - operator: "In"
+        - matchArgs:
+            - index: 0
+              operator: "Equal"
               values:
                 - "/bin/sh"
+          matchActions:
+            - action: Sigkill
+        - matchArgs:
+            - index: 0
+              operator: "Equal"
+              values:
                 - "/bin/bash"
+          matchActions:
+            - action: Sigkill
+        - matchArgs:
+            - index: 0
+              operator: "Equal"
+              values:
                 - "/usr/bin/bash"
+          matchActions:
+            - action: Sigkill
+        - matchArgs:
+            - index: 0
+              operator: "Equal"
+              values:
                 - "/bin/dash"
           matchActions:
             - action: Sigkill
@@ -47,16 +66,59 @@ spec:
         - index: 0
           type: "string"
       selectors:
-        - matchBinaries:
-            - operator: "In"
+        - matchArgs:
+            - index: 0
+              operator: "Equal"
               values:
                 - "/usr/bin/curl"
+          matchActions:
+            - action: Sigkill
+        - matchArgs:
+            - index: 0
+              operator: "Equal"
+              values:
                 - "/bin/curl"
+          matchActions:
+            - action: Sigkill
+        - matchArgs:
+            - index: 0
+              operator: "Equal"
+              values:
                 - "/usr/bin/wget"
+          matchActions:
+            - action: Sigkill
+        - matchArgs:
+            - index: 0
+              operator: "Equal"
+              values:
                 - "/bin/wget"
+          matchActions:
+            - action: Sigkill
+        - matchArgs:
+            - index: 0
+              operator: "Equal"
+              values:
                 - "/usr/bin/nc"
+          matchActions:
+            - action: Sigkill
+        - matchArgs:
+            - index: 0
+              operator: "Equal"
+              values:
                 - "/bin/nc"
+          matchActions:
+            - action: Sigkill
+        - matchArgs:
+            - index: 0
+              operator: "Equal"
+              values:
                 - "/usr/bin/netcat"
+          matchActions:
+            - action: Sigkill
+        - matchArgs:
+            - index: 0
+              operator: "Equal"
+              values:
                 - "/bin/netcat"
           matchActions:
             - action: Sigkill
