@@ -19,6 +19,7 @@ except ImportError:
 LOG_FILE = os.environ.get("WAZUH_AR_LOG_FILE", "/var/ossec/logs/active-responses.log")
 ADD_COMMAND, DELETE_COMMAND, CONTINUE_COMMAND, ABORT_COMMAND = 0, 1, 2, 3
 OS_SUCCESS, OS_INVALID = 0, -1
+OS_API_ERROR = 1
 ALLOWED_NAMESPACE = "vulnerable-apps"
 
 
@@ -121,11 +122,14 @@ def main(argv):
             if "WAZUH_AR_DRY_RUN" in os.environ:
                 write_debug_file(argv[0], f"dry-run delete {ns}/{pod}")
             else:
+                if kubernetes is None:
+                    raise RuntimeError("kubernetes client is not installed")
                 kubernetes.config.load_incluster_config()
                 kubernetes.client.CoreV1Api().delete_namespaced_pod(namespace=ns, name=pod)
             write_debug_file(argv[0], f"OK {ns}/{pod}")
         except Exception as e:
             write_debug_file(argv[0], f"err: {e}")
+            sys.exit(OS_API_ERROR)
     write_debug_file(argv[0], "Ended")
     sys.exit(OS_SUCCESS)
 

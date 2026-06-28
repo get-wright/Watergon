@@ -14,6 +14,7 @@ except ImportError:
 LOG_FILE = os.environ.get("WAZUH_AR_LOG_FILE", "/var/ossec/logs/active-responses.log")
 ADD_COMMAND, DELETE_COMMAND = 0, 1
 OS_SUCCESS, OS_INVALID = 0, -1
+OS_API_ERROR = 1
 ALLOWED_NAMESPACES = {"vulnerable-apps"}
 QUARANTINE_LABEL = "security.watergon/quarantine"
 
@@ -105,12 +106,15 @@ def main(argv):
         if "WAZUH_AR_DRY_RUN" in os.environ:
             write_debug_file(argv[0], f"dry-run quarantine label {namespace}/{pod}={value}")
         else:
+            if kubernetes is None:
+                raise RuntimeError("kubernetes client is not installed")
             kubernetes.config.load_incluster_config()
             api = kubernetes.client.CoreV1Api()
             patch_pod_label(api, namespace, pod, value)
         write_debug_file(argv[0], f"OK quarantine {namespace}/{pod}={value} rule={rule_id}")
     except Exception as e:
         write_debug_file(argv[0], f"err: {e}")
+        sys.exit(OS_API_ERROR)
     write_debug_file(argv[0], "Ended")
     sys.exit(OS_SUCCESS)
 

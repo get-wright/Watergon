@@ -44,19 +44,28 @@ spec:
                   snippet=/tmp/active-response-watergon.conf
                   start="<!-- WATERGON_ACTIVE_RESPONSE_START -->"
                   end="<!-- WATERGON_ACTIVE_RESPONSE_END -->"
-                  tmp="$(mktemp)"
+                  filtered="$(mktemp /var/ossec/etc/ossec.conf.filtered.XXXXXX)"
+                  merged="$(mktemp /var/ossec/etc/ossec.conf.merged.XXXXXX)"
                   awk -v start="$start" -v end="$end" '\''
                     $0 == start {skip=1; next}
                     $0 == end {skip=0; next}
                     !skip {print}
-                  '\'' "$conf" > "$tmp"
+                  '\'' "$conf" > "$filtered"
                   {
-                    cat "$tmp"
+                    cat "$filtered"
                     printf "\n%s\n" "$start"
                     cat "$snippet"
                     printf "%s\n" "$end"
-                  } > "$conf"
-                  rm -f "$tmp" "$snippet"
+                  } > "$merged"
+                  grep -qF "$start" "$merged"
+                  grep -qF "$end" "$merged"
+                  grep -q "<name>delete-pod</name>" "$merged"
+                  grep -q "<name>quarantine-pod</name>" "$merged"
+                  grep -q "<name>block-attacker-ip</name>" "$merged"
+                  chown --reference="$conf" "$merged"
+                  chmod --reference="$conf" "$merged"
+                  mv "$merged" "$conf"
+                  rm -f "$filtered" "$snippet"
                 '
               done
 

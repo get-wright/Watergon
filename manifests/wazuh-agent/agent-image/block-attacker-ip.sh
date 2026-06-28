@@ -20,6 +20,26 @@ read_payload() {
   printf '%s' "$line"
 }
 
+validate_json() {
+  python3 -c '
+import json
+import sys
+try:
+    json.loads(sys.stdin.read())
+except ValueError:
+    raise SystemExit(1)
+' <<< "$1"
+}
+
+extract_command() {
+  python3 -c '
+import json
+import sys
+data = json.loads(sys.stdin.read())
+print(data.get("command", "") if isinstance(data, dict) else "")
+' <<< "$1"
+}
+
 extract_source_ip() {
   python3 -c '
 import json
@@ -36,6 +56,8 @@ def nested_get(data, path):
     return current
 
 data = json.loads(sys.stdin.read())
+if not isinstance(data, dict):
+    raise SystemExit(0)
 alert = nested_get(data, ["parameters", "alert"]) or data.get("alert") or data
 candidates = [
     nested_get(alert, ["data", "srcip"]),
@@ -72,6 +94,9 @@ def nested_get(data, path):
     return current
 
 data = json.loads(sys.stdin.read())
+if not isinstance(data, dict):
+    print("unknown")
+    raise SystemExit(0)
 alert = nested_get(data, ["parameters", "alert"]) or data.get("alert") or data
 print(nested_get(alert, ["rule", "id"]) or alert.get("rule_id") or "unknown")
 ' <<< "$1"
@@ -112,7 +137,11 @@ main() {
   local payload command source_ip rule_id
   payload="$(read_payload)"
   log_msg "$payload"
-  command="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read()).get("command", ""))' <<< "$payload")"
+  if ! validate_json "$payload"; then
+    log_msg "invalid JSON"
+    exit 255
+  fi
+  command="$(extract_command "$payload")"
   source_ip="$(extract_source_ip "$payload" | tr -d '[:space:]')"
   rule_id="$(extract_rule_id "$payload" | tr -d '[:space:]')"
 
