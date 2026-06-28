@@ -4,3 +4,4 @@ namespace: vulnerable-apps
 resources:
   - dvwa.yaml
   - nodegoat.yaml
+  - quarantine-networkpolicy.yaml
