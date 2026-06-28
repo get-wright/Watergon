@@ -12,7 +12,7 @@ spec:
   ttlSecondsAfterFinished: 600
   template:
     spec:
-      serviceAccountName: wazuh-agent-sa
+      serviceAccountName: wazuh-rules-sync-sa
       restartPolicy: OnFailure
       containers:
         - name: sync

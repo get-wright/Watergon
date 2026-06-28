@@ -83,11 +83,6 @@ def patch_pod_label(api, namespace, pod, value):
     api.patch_namespaced_pod(name=pod, namespace=namespace, body=body)
 
 
-def patch_namespace_label(api, namespace, value):
-    body = {"metadata": {"labels": {QUARANTINE_LABEL: value}}}
-    api.patch_namespace(name=namespace, body=body)
-
-
 def main(argv):
     write_debug_file(argv[0], "Started")
     command, data = setup_and_check_message(argv)
@@ -113,8 +108,6 @@ def main(argv):
             kubernetes.config.load_incluster_config()
             api = kubernetes.client.CoreV1Api()
             patch_pod_label(api, namespace, pod, value)
-            if os.environ.get("WATERGON_QUARANTINE_NAMESPACE") == "true":
-                patch_namespace_label(api, namespace, value)
         write_debug_file(argv[0], f"OK quarantine {namespace}/{pod}={value} rule={rule_id}")
     except Exception as e:
         write_debug_file(argv[0], f"err: {e}")

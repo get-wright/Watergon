@@ -58,6 +58,25 @@ for candidate in candidates:
 ' <<< "$1"
 }
 
+extract_rule_id() {
+  python3 -c '
+import json
+import sys
+
+def nested_get(data, path):
+    current = data
+    for key in path:
+        if not isinstance(current, dict) or key not in current:
+            return None
+        current = current[key]
+    return current
+
+data = json.loads(sys.stdin.read())
+alert = nested_get(data, ["parameters", "alert"]) or data.get("alert") or data
+print(nested_get(alert, ["rule", "id"]) or alert.get("rule_id") or "unknown")
+' <<< "$1"
+}
+
 validate_ip() {
   python3 -c '
 import ipaddress
@@ -90,43 +109,44 @@ delete_rule() {
 }
 
 main() {
-  local payload command source_ip
+  local payload command source_ip rule_id
   payload="$(read_payload)"
   log_msg "$payload"
   command="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read()).get("command", ""))' <<< "$payload")"
   source_ip="$(extract_source_ip "$payload" | tr -d '[:space:]')"
+  rule_id="$(extract_rule_id "$payload" | tr -d '[:space:]')"
 
   if [[ "$command" != "add" && "$command" != "delete" ]]; then
-    log_msg "bad command: $command"
+    log_msg "bad command: $command rule=$rule_id"
     exit 255
   fi
   if [[ -z "$source_ip" ]] || ! validate_ip "$source_ip"; then
-    log_msg "invalid or missing source IP: $source_ip"
+    log_msg "invalid or missing source IP: $source_ip rule=$rule_id"
     exit 0
   fi
   if ! reject_denied_ip "$source_ip"; then
-    log_msg "refusing to block protected lab infrastructure IP: $source_ip"
+    log_msg "refusing to block protected lab infrastructure IP: $source_ip rule=$rule_id"
     exit 0
   fi
 
   if [[ -n "${WAZUH_AR_DRY_RUN:-}" ]]; then
-    log_msg "dry-run $command iptables block source=$source_ip dport=$NODEPORT"
+    log_msg "dry-run $command iptables block source=$source_ip dport=$NODEPORT rule=$rule_id"
     exit 0
   fi
 
   if [[ "$command" == "add" ]]; then
     if rule_exists "$source_ip"; then
-      log_msg "iptables block already exists source=$source_ip dport=$NODEPORT"
+      log_msg "iptables block already exists source=$source_ip dport=$NODEPORT rule=$rule_id"
     else
       add_rule "$source_ip"
-      log_msg "added timed iptables block source=$source_ip dport=$NODEPORT"
+      log_msg "added timed iptables block source=$source_ip dport=$NODEPORT rule=$rule_id"
     fi
   else
     if rule_exists "$source_ip"; then
       delete_rule "$source_ip"
-      log_msg "removed timed iptables block source=$source_ip dport=$NODEPORT"
+      log_msg "removed timed iptables block source=$source_ip dport=$NODEPORT rule=$rule_id"
     else
-      log_msg "iptables block absent source=$source_ip dport=$NODEPORT"
+      log_msg "iptables block absent source=$source_ip dport=$NODEPORT rule=$rule_id"
     fi
   fi
 }
