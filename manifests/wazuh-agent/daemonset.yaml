@@ -32,6 +32,9 @@ spec:
           envFrom:
             - secretRef:
                 name: wazuh-api-cred
+          env:
+            - name: WATERGON_DVWA_NODEPORT
+              value: "30000"
           securityContext:
             privileged: true
           resources:
