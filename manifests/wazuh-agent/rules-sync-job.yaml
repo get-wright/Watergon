@@ -1,7 +1,9 @@
 # Runs ONCE after wazuh-server is ready, BEFORE the agent DaemonSet.
 # - Creates the k8s-nodes agent group on master+worker (Setup.md Step 15.4 — required for enrollment)
-# - Copies tetragon rules XML into both manager pods (master AND worker — cluster sync may lag)
-# - Restarts manager processes so the rules load
+# - Copies tetragon rules XML and manager active-response XML into both
+#   manager pods (master AND worker — cluster sync may lag)
+# - Idempotently merges active-response XML into manager ossec.conf
+# - Restarts manager processes so the rules and active responses load
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -33,6 +35,31 @@ spec:
               kubectl cp /rules/0700-tetragon_rules.xml wazuh/wazuh-manager-master-0:/var/ossec/etc/rules/0700-tetragon_rules.xml
               kubectl cp /rules/0700-tetragon_rules.xml wazuh/wazuh-manager-worker-0:/var/ossec/etc/rules/0700-tetragon_rules.xml
 
+              echo "Merge Watergon active-response config into both managers..."
+              for pod in wazuh-manager-master-0 wazuh-manager-worker-0; do
+                kubectl cp /active-response/active-response-watergon.conf "wazuh/${pod}:/tmp/active-response-watergon.conf"
+                kubectl exec -n wazuh "${pod}" -- /bin/bash -c '
+                  set -e
+                  conf=/var/ossec/etc/ossec.conf
+                  snippet=/tmp/active-response-watergon.conf
+                  start="<!-- WATERGON_ACTIVE_RESPONSE_START -->"
+                  end="<!-- WATERGON_ACTIVE_RESPONSE_END -->"
+                  tmp="$(mktemp)"
+                  awk -v start="$start" -v end="$end" '\''
+                    $0 == start {skip=1; next}
+                    $0 == end {skip=0; next}
+                    !skip {print}
+                  '\'' "$conf" > "$tmp"
+                  {
+                    cat "$tmp"
+                    printf "\n%s\n" "$start"
+                    cat "$snippet"
+                    printf "%s\n" "$end"
+                  } > "$conf"
+                  rm -f "$tmp" "$snippet"
+                '
+              done
+
               echo "Restart both managers (in-place wazuh-control restart, not pod restart)..."
               kubectl exec -n wazuh wazuh-manager-master-0 -- /var/ossec/bin/wazuh-control restart
               kubectl exec -n wazuh wazuh-manager-worker-0 -- /var/ossec/bin/wazuh-control restart
@@ -42,7 +69,13 @@ spec:
             - name: rules
               mountPath: /rules
               readOnly: true
+            - name: active-response
+              mountPath: /active-response
+              readOnly: true
       volumes:
         - name: rules
           configMap:
             name: wazuh-tetragon-rules
+        - name: active-response
+          configMap:
+            name: wazuh-active-response-config

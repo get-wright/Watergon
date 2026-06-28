@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - serviceaccount.yaml
   - rules-cm.yaml
+  - active-response-cm.yaml
   - configmap.yaml
   - rules-sync-job.yaml
   - daemonset.yaml

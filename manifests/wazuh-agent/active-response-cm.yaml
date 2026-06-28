@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wazuh-active-response-config
+  namespace: wazuh
+data:
+  active-response-watergon.conf: |
+    <ossec_config>
+      <command>
+        <name>delete-pod</name>
+        <executable>delete-pod.py</executable>
+        <timeout_allowed>no</timeout_allowed>
+      </command>
+
+      <command>
+        <name>quarantine-pod</name>
+        <executable>quarantine-pod.py</executable>
+        <timeout_allowed>yes</timeout_allowed>
+      </command>
+
+      <command>
+        <name>block-attacker-ip</name>
+        <executable>block-attacker-ip.sh</executable>
+        <timeout_allowed>yes</timeout_allowed>
+      </command>
+
+      <active-response>
+        <disabled>no</disabled>
+        <command>delete-pod</command>
+        <location>local</location>
+        <rules_id>700011,700030</rules_id>
+      </active-response>
+
+      <active-response>
+        <disabled>no</disabled>
+        <command>quarantine-pod</command>
+        <location>local</location>
+        <rules_id>700010,700021,700022</rules_id>
+        <timeout>600</timeout>
+      </active-response>
+
+      <active-response>
+        <disabled>no</disabled>
+        <command>block-attacker-ip</command>
+        <location>local</location>
+        <rules_id>700041</rules_id>
+        <timeout>300</timeout>
+      </active-response>
+    </ossec_config>
