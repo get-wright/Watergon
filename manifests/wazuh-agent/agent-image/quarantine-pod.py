@@ -49,13 +49,24 @@ def extract_pod_context(data):
     alert = extract_alert(data)
     pod = (
         nested_get(alert, ["data", "process_exec", "process", "pod"])
+        or nested_get(alert, ["data", "process_kprobe", "process", "pod"])
         or nested_get(alert, ["data", "process", "pod"])
         or nested_get(alert, ["process_exec", "process", "pod"])
+        or nested_get(alert, ["process_kprobe", "process", "pod"])
+        or {}
+    )
+    process = (
+        nested_get(alert, ["data", "process_exec", "process"])
+        or nested_get(alert, ["data", "process_kprobe", "process"])
+        or nested_get(alert, ["data", "process"])
+        or nested_get(alert, ["process_exec", "process"])
+        or nested_get(alert, ["process_kprobe", "process"])
         or {}
     )
     return {
         "namespace": pod.get("namespace") or nested_get(alert, ["kubernetes", "namespace"]),
         "pod": pod.get("name") or nested_get(alert, ["kubernetes", "pod_name"]),
+        "container": process.get("container", {}).get("name") if isinstance(process.get("container"), dict) else process.get("container_name"),
         "rule_id": str(nested_get(alert, ["rule", "id"]) or alert.get("rule_id") or "unknown"),
     }
 
@@ -93,6 +104,7 @@ def main(argv):
     context = extract_pod_context(data)
     namespace = context["namespace"]
     pod = context["pod"]
+    container = context["container"] or "unknown-container"
     rule_id = context["rule_id"]
     if not namespace or not pod:
         write_debug_file(argv[0], f"missing namespace or pod in alert rule={rule_id}; no action")
@@ -104,14 +116,14 @@ def main(argv):
     value = "true" if command == ADD_COMMAND else "false"
     try:
         if "WAZUH_AR_DRY_RUN" in os.environ:
-            write_debug_file(argv[0], f"dry-run quarantine label {namespace}/{pod}={value}")
+            write_debug_file(argv[0], f"dry-run quarantine label {namespace}/{pod}={value} container={container}")
         else:
             if kubernetes is None:
                 raise RuntimeError("kubernetes client is not installed")
             kubernetes.config.load_incluster_config()
             api = kubernetes.client.CoreV1Api()
             patch_pod_label(api, namespace, pod, value)
-        write_debug_file(argv[0], f"OK quarantine {namespace}/{pod}={value} rule={rule_id}")
+        write_debug_file(argv[0], f"OK quarantine {namespace}/{pod}={value} container={container} rule={rule_id}")
     except Exception as e:
         write_debug_file(argv[0], f"err: {e}")
         sys.exit(OS_API_ERROR)

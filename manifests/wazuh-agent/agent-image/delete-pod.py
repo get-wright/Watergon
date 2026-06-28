@@ -59,14 +59,18 @@ def extract_pod_context(data):
     alert = extract_alert(data)
     pod = (
         nested_get(alert, ["data", "process_exec", "process", "pod"])
+        or nested_get(alert, ["data", "process_kprobe", "process", "pod"])
         or nested_get(alert, ["data", "process", "pod"])
         or nested_get(alert, ["process_exec", "process", "pod"])
+        or nested_get(alert, ["process_kprobe", "process", "pod"])
         or {}
     )
     process = (
         nested_get(alert, ["data", "process_exec", "process"])
+        or nested_get(alert, ["data", "process_kprobe", "process"])
         or nested_get(alert, ["data", "process"])
         or nested_get(alert, ["process_exec", "process"])
+        or nested_get(alert, ["process_kprobe", "process"])
         or {}
     )
     return {
