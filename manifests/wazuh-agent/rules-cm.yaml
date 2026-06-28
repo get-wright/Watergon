@@ -51,13 +51,13 @@ data:
         <description>Shell spawn: $(process_exec.process.binary)</description>
       </rule>
 
-      <!-- Outbound download tools -->
+      <!-- Outbound download and relay tools -->
       <rule id="700005" level="7">
         <if_sid>700000</if_sid>
-        <field name="process_exec.process.binary">/usr/bin/curl|/bin/curl|/usr/bin/wget|/bin/wget</field>
+        <field name="process_exec.process.binary">/usr/bin/curl|/bin/curl|/usr/bin/wget|/bin/wget|/usr/bin/nc|/bin/nc|/usr/bin/netcat|/bin/netcat|/usr/bin/ncat|/bin/ncat</field>
         <options>no_full_log</options>
         <group>tetragon_exec,data_exfil,</group>
-        <description>Download tool: $(process_exec.process.binary)</description>
+        <description>Download or relay tool: $(process_exec.process.binary)</description>
       </rule>
 
       <!-- Package manager -->
@@ -111,6 +111,53 @@ data:
         <options>no_full_log</options>
         <group>tetragon_kprobe,network,</group>
         <description>TCP connect via $(process_kprobe.process.binary)</description>
+      </rule>
+
+      <rule id="700021" level="9">
+        <if_sid>700020</if_sid>
+        <field name="process_kprobe.process.pod.namespace">vulnerable-apps</field>
+        <field name="process_kprobe.process.pod.workload" type="pcre2">(?i)(dvwa|vulnerable-webapp)</field>
+        <options>no_full_log</options>
+        <group>tetragon_kprobe,network,dvwa,k8s_aware,</group>
+        <description>DVWA TCP connect via $(process_kprobe.process.binary)</description>
+      </rule>
+
+      <rule id="700022" level="10">
+        <if_sid>700002</if_sid>
+        <field name="process_kprobe.function_name">security_file_open</field>
+        <field name="process_kprobe.policy_name">sensitive-file-open</field>
+        <field name="process_kprobe.process.pod.namespace">vulnerable-apps</field>
+        <options>no_full_log</options>
+        <group>tetragon_kprobe,sensitive_file,k8s_aware,</group>
+        <description>Sensitive file open by $(process_kprobe.process.binary)</description>
+      </rule>
+
+      <rule id="700030" level="11">
+        <if_sid>700000</if_sid>
+        <field name="process_exec.process.pod.namespace">vulnerable-apps</field>
+        <field name="process_exec.process.parent.binary" type="pcre2">(?i)(apache2|httpd|nginx|php|php-fpm)</field>
+        <field name="process_exec.process.binary" type="pcre2">(?i)(/bin/(sh|bash|dash)|/usr/bin/(sh|bash|dash|id|whoami|uname|cat))</field>
+        <options>no_full_log</options>
+        <group>tetragon_exec,webshell,command_execution,k8s_aware,</group>
+        <description>Webshell-like command from $(process_exec.process.parent.binary): $(process_exec.process.binary)</description>
+      </rule>
+
+      <!-- Optional HTTP access-log signal. Fires only when JSON logs expose srcip and URL fields. -->
+      <rule id="700040" level="3">
+        <decoded_as>json</decoded_as>
+        <field name="srcip">\.+</field>
+        <field name="url" type="pcre2">(?i)(/login\.php|/login|/wp-login\.php|/user/login|/signin)</field>
+        <options>no_full_log</options>
+        <group>http,authentication,bruteforce_probe,</group>
+        <description>HTTP login path request from $(srcip)</description>
+      </rule>
+
+      <rule id="700041" level="10" frequency="8" timeframe="60">
+        <if_matched_sid>700040</if_matched_sid>
+        <same_srcip />
+        <options>no_full_log</options>
+        <group>http,authentication,bruteforce,</group>
+        <description>Repeated HTTP login path requests from $(srcip)</description>
       </rule>
 
       <!-- Forensic audit trail for vulnerable-apps. Level 3 = recorded but
