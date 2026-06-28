@@ -1,5 +1,6 @@
-# Declarative kernel-level hooks. Each TracingPolicy emits process_kprobe
-# events with function_name + args. Wazuh rule 700020 catches tcp_connect.
+# Observe-only kernel hooks for DVWA benchmark detections. Tetragon adds
+# process and Kubernetes metadata to process_kprobe events; the sock/file args
+# below provide destination and path details for Wazuh correlation.
 apiVersion: cilium.io/v1alpha1
 kind: TracingPolicyNamespaced
 metadata:
@@ -30,6 +31,7 @@ spec:
             - index: 0
               operator: "Prefix"
               values:
+                - "/etc/passwd"
                 - "/etc/shadow"
-                - "/etc/sudoers"
+                - "/var/run/secrets/kubernetes.io/serviceaccount/token"
                 - "/root/.ssh"

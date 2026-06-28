@@ -1,0 +1,89 @@
+# Opt-in Tetragon enforcement policies for DVWA experiments.
+#
+# This file is intentionally not listed in kustomization.yaml. Apply it only
+# for destructive enforcement tests, for example:
+#   kubectl apply -f manifests/tetragon/tracingpolicies-enforcement.opt-in.yaml
+#
+# Scope is limited to pods in vulnerable-apps with app=vulnerable-webapp.
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicyNamespaced
+metadata:
+  name: dvwa-shell-enforce
+  namespace: vulnerable-apps
+spec:
+  podSelector:
+    matchLabels:
+      app: vulnerable-webapp
+  kprobes:
+    - call: "sys_execve"
+      syscall: true
+      args:
+        - index: 0
+          type: "string"
+      selectors:
+        - matchBinaries:
+            - operator: "In"
+              values:
+                - "/bin/sh"
+                - "/bin/bash"
+                - "/usr/bin/bash"
+                - "/bin/dash"
+          matchActions:
+            - action: Sigkill
+---
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicyNamespaced
+metadata:
+  name: dvwa-network-tools-enforce
+  namespace: vulnerable-apps
+spec:
+  podSelector:
+    matchLabels:
+      app: vulnerable-webapp
+  kprobes:
+    - call: "sys_execve"
+      syscall: true
+      args:
+        - index: 0
+          type: "string"
+      selectors:
+        - matchBinaries:
+            - operator: "In"
+              values:
+                - "/usr/bin/curl"
+                - "/bin/curl"
+                - "/usr/bin/wget"
+                - "/bin/wget"
+                - "/usr/bin/nc"
+                - "/bin/nc"
+                - "/usr/bin/netcat"
+                - "/bin/netcat"
+          matchActions:
+            - action: Sigkill
+---
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicyNamespaced
+metadata:
+  name: dvwa-sensitive-file-enforce
+  namespace: vulnerable-apps
+spec:
+  podSelector:
+    matchLabels:
+      app: vulnerable-webapp
+  kprobes:
+    - call: "security_file_open"
+      syscall: false
+      args:
+        - index: 0
+          type: "file"
+      selectors:
+        - matchArgs:
+            - index: 0
+              operator: "Prefix"
+              values:
+                - "/etc/passwd"
+                - "/etc/shadow"
+                - "/var/run/secrets/kubernetes.io/serviceaccount/token"
+                - "/root/.ssh"
+          matchActions:
+            - action: Sigkill
